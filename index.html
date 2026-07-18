@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>10-22 Prep &mdash; LEO Exam Study Squad</title>
+<title>WRPD StudyBoard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -14,9 +14,15 @@
 <!-- Name gate: shown until a user sets their name -->
 <div id="nameGate" class="name-gate">
   <div class="name-gate-card">
-    <div class="badge-mark">&#9733;</div>
+    <div class="badge-mark">
+      <svg viewBox="0 0 48 48" width="44" height="44" xmlns="http://www.w3.org/2000/svg">
+        <path d="M24 2 L44 10 V24 C44 36 36 44 24 46 C12 44 4 36 4 24 V10 Z" fill="#1E3A8A" stroke="#FFFFFF" stroke-width="2"/>
+        <path d="M13 27 L24 16 L35 27" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M13 35 L24 24 L35 35" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
     <h1>Who's studying?</h1>
-    <p>Your name is stamped on anything you add or edit, so the group knows who to thank (or blame).</p>
+    <p>Your name is stamped on anything you add or edit, so the squad knows who to thank (or blame).</p>
     <input type="text" id="nameInput" maxlength="30" placeholder="Enter your name" autocomplete="off">
     <button id="nameSubmit" class="btn btn-primary">Start studying</button>
   </div>
@@ -26,7 +32,13 @@
 
   <header class="site-header">
     <div class="brand">
-      <span class="badge-mark">&#9733;</span>
+      <span class="badge-mark">
+        <svg viewBox="0 0 48 48" width="38" height="38" xmlns="http://www.w3.org/2000/svg">
+          <path d="M24 2 L44 10 V24 C44 36 36 44 24 46 C12 44 4 36 4 24 V10 Z" fill="#1E3A8A" stroke="#FFFFFF" stroke-width="2"/>
+          <path d="M13 27 L24 16 L35 27" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M13 35 L24 24 L35 35" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
       <div class="brand-text">
         <span class="brand-title">WRPD StudyBoard</span>
         <span class="brand-sub">CRA 2026-2</span>
@@ -40,42 +52,16 @@
   </header>
 
   <nav class="tabs" role="tablist">
-    <button class="tab-btn active" data-tab="notes" role="tab">Upload</button>
-    <button class="tab-btn" data-tab="study" role="tab">Study</button>
+    <button class="tab-btn active" data-tab="study" role="tab">Study</button>
     <button class="tab-btn" data-tab="bank" role="tab">Question Bank</button>
+    <button class="tab-btn" data-tab="notes" role="tab">Notes Assist</button>
     <button class="tab-btn" data-tab="calendar" role="tab">Calendar</button>
   </nav>
 
   <main class="tab-panels">
 
-    <!-- TAB 1: NOTES ASSIST -->
-    <section id="tab-notes" class="tab-panel active">
-      <div class="panel-head">
-        <h2>Turn your notes into questions</h2>
-        <p class="panel-sub">Upload a PDF or paste text. This pulls out candidate sentences so you can quickly draft flashcards &mdash; Full auto-generation is a planned upgrade soon.</p>
-      </div>
-
-      <div class="card">
-        <div class="notes-input-row">
-          <div class="upload-box" id="dropZone">
-            <input type="file" id="pdfInput" accept="application/pdf" hidden>
-            <p><strong>Drop a PDF</strong> or <button id="pdfBrowseBtn" class="link-btn">browse files</button></p>
-            <p class="muted small">Text is extracted right in your browser &mdash; nothing is uploaded anywhere.</p>
-          </div>
-          <div class="or-divider">or</div>
-          <textarea id="pasteNotes" placeholder="Paste notes text here..." rows="6"></textarea>
-        </div>
-        <div class="notes-actions">
-          <button id="extractBtn" class="btn btn-primary">Find candidate sentences</button>
-          <span id="notesStatus" class="muted small"></span>
-        </div>
-      </div>
-
-      <div id="candidateList" class="candidate-list"></div>
-    </section>
-
-    <!-- TAB 2: STUDY -->
-    <section id="tab-study" class="tab-panel">
+    <!-- TAB: STUDY -->
+    <section id="tab-study" class="tab-panel active">
       <div class="panel-head">
         <h2>Study session</h2>
         <p class="panel-sub">Pull questions from the shared bank.</p>
@@ -138,11 +124,11 @@
       </div>
     </section>
 
-    <!-- TAB 3: QUESTION BANK / MANUAL CREATION -->
+    <!-- TAB: QUESTION BANK / MANUAL CREATION -->
     <section id="tab-bank" class="tab-panel">
       <div class="panel-head">
         <h2>Question bank</h2>
-        <p class="panel-sub">Add a question and answer. This tab will draft three wrong-answer options for multiple choice &mdash; edit them however you like before saving.</p>
+        <p class="panel-sub">Add a question and answer. We'll draft three wrong-answer options for multiple choice &mdash; edit them however you like before saving.</p>
       </div>
 
       <div class="card">
@@ -183,7 +169,53 @@
       <div id="questionList" class="question-list"></div>
     </section>
 
-    <!-- TAB 4: CALENDAR -->
+    <!-- TAB: NOTES ASSIST -->
+    <section id="tab-notes" class="tab-panel">
+      <div class="panel-head">
+        <h2>Turn your notes into questions</h2>
+        <p class="panel-sub">Upload a PDF or paste text. This reads your outline structure &mdash; topics, nested bullets, "Term - definition" lines, and anything wrapped in <strong>**double asterisks**</strong> &mdash; and drafts questions from each pattern. No AI key required for this pass.</p>
+      </div>
+
+      <div class="card">
+        <div class="notes-input-row">
+          <div class="upload-box" id="dropZone">
+            <input type="file" id="pdfInput" accept="application/pdf" hidden>
+            <p><strong>Drop a PDF</strong> or <button id="pdfBrowseBtn" class="link-btn">browse files</button></p>
+            <p class="muted small">Text is extracted right in your browser &mdash; nothing is uploaded anywhere.</p>
+          </div>
+          <div class="or-divider">or</div>
+          <textarea id="pasteNotes" placeholder="Paste notes text here. Keep your bullets/indentation and **double asterisks** as typed &mdash; e.g.&#10;&#10;Ethics - values of right and wrong&#10;&#10;Use of Force&#10;* De-escalation&#10;   * Officers must attempt **verbal de-escalation** before force when feasible" rows="8"></textarea>
+        </div>
+        <div class="notes-actions">
+          <button id="extractBtn" class="btn btn-primary">Parse notes</button>
+          <span id="notesStatus" class="muted small"></span>
+        </div>
+      </div>
+
+      <div class="card ai-card">
+        <div class="ai-card-head">
+          <h3>AI-assisted generation <span class="q-category-tag">optional</span></h3>
+          <button id="aiToggleBtn" class="link-btn" type="button">show</button>
+        </div>
+        <div id="aiSection" class="ai-section hidden">
+          <p class="muted small">Uses Google's free-tier Gemini API. Your key is stored only in your own browser and sent directly to Google, never to the shared database. Steps to get a free key are in the README.</p>
+          <div class="field-row">
+            <label>Gemini API key
+              <input type="password" id="geminiKey" placeholder="Paste your free Gemini API key" autocomplete="off">
+            </label>
+          </div>
+          <div class="notes-actions">
+            <button id="aiGenerateBtn" class="btn btn-secondary" type="button">Generate with AI</button>
+            <button id="saveKeyBtn" class="btn btn-ghost small" type="button">Save key to this browser</button>
+            <span id="aiStatus" class="muted small"></span>
+          </div>
+        </div>
+      </div>
+
+      <div id="candidateList" class="candidate-list"></div>
+    </section>
+
+    <!-- TAB: CALENDAR -->
     <section id="tab-calendar" class="tab-panel">
       <div class="panel-head">
         <h2>Test calendar</h2>
