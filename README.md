@@ -1,31 +1,34 @@
 # WRPD StudyBoard — CRA 2026-2
 
-A shared study site for you and your squad: flashcards, multiple choice quizzes,
-a question bank anyone can add to, a group calendar for test dates, and a
-notes-to-questions parser that reads your outline structure. Runs entirely as
-static files on GitHub Pages, with Firebase (free tier) as the shared database
-so everyone sees the same data.
+A shared study site for you and your squad: flashcards, multiple choice,
+true/false, a question bank anyone can add to, a group calendar, and a
+notes-to-questions parser that reads your outline structure. Runs entirely
+as static files on GitHub Pages, with Firebase (free tier) as the shared
+database so everyone sees the same data.
 
 ## What's in each tab
 
-1. **Study** — Pick flashcards or multiple choice, filter by category, and go
-   through the shared question bank.
-2. **Question Bank** — Add a question and correct answer. Click "Generate
-   multiple-choice options" and it drafts 3 wrong answers (tweaks the numbers
-   in your answer, or borrows other answers from the bank if there's no
-   number to work with) — edit them freely before saving.
-3. **Notes Assist** — Upload a PDF or paste text. It parses your actual
-   outline structure instead of just splitting sentences:
-   - **Topic / nested bullets** (e.g. `Topic` → `* section` → `   * quote`)
-     become questions like "Under Topic > section, what is noted?"
-   - **`Term - definition`** lines become "What is Term?" questions.
-   - **`**anything wrapped in double asterisks**`** always becomes a
-     fill-in-the-blank question, since those are your flagged exam facts.
-   - An optional **AI-assisted** pass (see below) can also generate
-     questions using Google's free Gemini API, for notes that don't follow
-     a strict pattern.
+1. **Study** — Run a session as flashcards, multiple choice, or true/false.
+   Filter by category and/or week, shuffle if you want. Flashcards track
+   right/wrong via a "Mark correct" button; multiple choice and true/false
+   score automatically as you answer (and flash green/red on each pick).
+2. **Question Bank** — Add a question by hand as Standard (flashcard +
+   multiple choice) or True/False. Standard questions can auto-draft 3
+   wrong-answer options — edit them freely before saving. Any question can
+   be flagged **gold** (guaranteed on the exam) — gold questions get a gold
+   outline everywhere they show up. New questions are auto-tagged with the
+   current week.
+3. **Upload** — Upload a PDF or paste text. It parses your outline
+   structure instead of splitting sentences:
+   - **`Term - definition`** (or `Term: definition`) lines split into a
+     front/back flashcard, plus a companion true/false question.
+   - **Nested bullets** (e.g. `Topic` → `* section` → `   * quote`) become
+     questions like "Under Topic > section, what is noted?"
+   Review each draft, mark it gold if it's need-to-know, then send it to
+   the Question Bank.
 4. **Calendar** — Shared calendar for test dates and study sessions, with
    month/week/day views.
+5. **Help** — Contact info and a quick how-to.
 
 Every question and event is stamped with the name of whoever added or last
 edited it.
@@ -39,18 +42,25 @@ Ethics - values of right and wrong
 
 Use of Force
 * De-escalation
-   * Officers must attempt **verbal de-escalation** before force when feasible
+   * Officers must attempt verbal de-escalation before force when feasible
 ```
 
 - Indent nested bullets with spaces or tabs so the parser can tell a
   section from its children.
 - Use `*`, `-`, or `•` for bullets.
-- Wrap anything you know will be tested in `**double asterisks**` —
-  those always become a question, regardless of anything else on the line.
+- Use a dash, colon, or period to split a "term" from its "definition" on
+  one line — that becomes a direct front/back flashcard.
 - For PDFs, the parser estimates indentation from the text's position on
   the page, which works well for typed/exported notes but is best-effort —
-  double check the parsed results, and paste as plain text instead if a PDF's
-  structure doesn't come through cleanly.
+  double check the parsed results, and paste as plain text instead if a
+  PDF's structure doesn't come through cleanly.
+
+### Weeks
+
+Every question is automatically filed under the week it was created in:
+**Week 1 is July 13–19, 2026**, Week 2 is July 20–26, and so on — each
+week starts Monday. Use the Week filter on the Study tab to study just
+this week's material, or everything so far.
 
 ---
 
@@ -107,53 +117,10 @@ Any time you edit a file, just commit and push — GitHub Pages redeploys automa
 
 ---
 
-## 3. Adding AI-assisted generation (free)
+## 3. Changing the site's name or URL
 
-The Notes Assist tab has an optional "AI-assisted generation" section that
-calls **Google's Gemini API**, which has a genuinely free tier (no credit
-card required) for the Flash and Flash-Lite models — that's what the app
-uses by default.
-
-Because GitHub Pages can't hide a secret key (anything in the site's
-JavaScript is visible to anyone who views the page source), each person
-pastes their **own** free key into the site. It's stored only in that
-person's browser (`localStorage`) and sent directly to Google — never to
-Firebase or anyone else in the group.
-
-**Getting a free Gemini API key:**
-
-1. Go to [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
-   and sign in with a Google account.
-2. Click **Create API key**. No credit card or billing setup is required to
-   stay on the free tier.
-3. Copy the key.
-4. In the Notes Assist tab, click **show** next to "AI-assisted generation",
-   paste the key into the field, and click **Save key to this browser**.
-5. Paste or upload your notes as usual, then click **Generate with AI**.
-
-The free tier has daily/per-minute request limits (they change over time —
-check [ai.google.dev/pricing](https://ai.google.dev/pricing) for current
-numbers), which is plenty for occasional note-processing but will throttle
-if hammered constantly. If you outgrow it, Gemini's paid tier or the
-Anthropic API are both drop-in alternatives — you'd swap the fetch call in
-`js/notes-assist.js`.
-
-**Alternative: no API key at all.** It's also possible to run a small AI
-model entirely inside the browser (via WebGPU, using a library like
-`@mlc-ai/web-llm`) — genuinely free forever, no key, no per-person setup,
-but each person downloads a multi-gigabyte model file the first time and
-needs a WebGPU-capable browser. Worth considering later if the API route
-becomes annoying; happy to build that version if you want it.
-
----
-
-## 4. Changing the site's name or URL
-
-What you can rename depends on whether you want the **GitHub Pages URL** to
-change, or just labels inside the app.
-
-**A. Change the in-app title/subtitle** — already set to "WRPD StudyBoard" /
-"CRA 2026-2". To change it again, edit these two spots in `index.html`:
+**A. Change the in-app title/subtitle** — currently "WRPD StudyBoard" /
+"CRA 2026-2". Edit these two spots in `index.html`:
 - `<title>WRPD StudyBoard</title>` (browser tab title)
 - `<span class="brand-title">WRPD StudyBoard</span>` and
   `<span class="brand-sub">CRA 2026-2</span>` (header)
@@ -169,19 +136,18 @@ Commit and push — no other setup needed.
    redirect isn't permanent.
 
 **C. Use your own custom domain instead of `github.io`:**
-1. Buy a domain from any registrar (Namecheap, Google Domains successor,
-   Cloudflare, etc.) if you don't have one.
+1. Buy a domain from any registrar (Namecheap, Cloudflare, etc.) if you
+   don't have one.
 2. In the repo, go to **Settings > Pages > Custom domain**, and enter your
    domain (e.g. `study.yourdomain.com`).
 3. At your domain registrar, add a **CNAME record** pointing
    `study` (or whichever subdomain) to `yourusername.github.io`.
    For a root domain (`yourdomain.com` with no subdomain), use the **A
    records** GitHub's docs list instead of a CNAME.
-4. Wait for DNS to propagate (can take a few minutes to a few hours), then
-   check the box for **Enforce HTTPS** back in the Pages settings once it's
-   available.
+4. Wait for DNS to propagate (a few minutes to a few hours), then check
+   **Enforce HTTPS** back in the Pages settings once it's available.
 
-GitHub's official custom domain guide has more detail if you hit a snag:
+GitHub's official guide has more detail if you hit a snag:
 [docs.github.com/pages/configuring-a-custom-domain-for-your-github-pages-site](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site)
 
 ---
@@ -193,7 +159,7 @@ index.html
 css/style.css
 js/firebase-config.js   <- put your real Firebase config here
 js/app.js                <- main app logic (tabs, question bank, study, calendar)
-js/notes-assist.js       <- outline-structure parser + optional Gemini AI generation
+js/notes-assist.js       <- outline-structure parser for the Upload tab
 .nojekyll
 README.md
 ```
@@ -208,10 +174,7 @@ README.md
 - **PDF upload does nothing** — some scanned PDFs have no selectable text
   layer (they're just images), so there's nothing to extract. Paste the text
   manually instead, or run the PDF through an OCR tool first.
-- **Notes Assist finds nothing** — the parser needs bullets (`*`/`-`/`•`),
-  `Term - definition` lines, or `**bold**` text to find patterns. Plain
-  paragraphs with none of those won't produce cards; either reformat, or use
-  the AI-assisted option instead.
-- **AI generation fails** — double check the Gemini key is correct and that
-  you haven't hit the free tier's rate limit (it resets daily); the error
-  message in the app will show the HTTP status Google returned.
+- **Upload tab finds nothing** — the parser needs bullets (`*`/`-`/`•`) or
+  `Term - definition` style lines to find patterns. Plain paragraphs with
+  neither won't produce cards; reformat, or add the question manually in
+  the Question Bank tab.

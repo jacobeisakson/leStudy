@@ -106,6 +106,18 @@ export function generateDistractors(answer, pool) {
 }
 
 // ---------------------------------------------------------------
+// Weeks — Week 1 = Mon Jul 13 2026 - Sun Jul 19 2026, then +7 days each week
+// ---------------------------------------------------------------
+const WEEK_ANCHOR = new Date(2026, 6, 13); // July 13, 2026 (month is 0-indexed)
+
+export function computeWeek(date) {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const anchor = new Date(WEEK_ANCHOR.getFullYear(), WEEK_ANCHOR.getMonth(), WEEK_ANCHOR.getDate());
+  const diffDays = Math.round((d - anchor) / (1000 * 60 * 60 * 24));
+  return Math.floor(diffDays / 7) + 1;
+}
+
+// ---------------------------------------------------------------
 // Name gate / current user
 // ---------------------------------------------------------------
 const nameGate = document.getElementById("nameGate");
@@ -171,11 +183,18 @@ export function switchTab(tabName) {
 // ---------------------------------------------------------------
 let questions = []; // local cache, live-synced
 let editingId = null;
+let editingWeek = null;
 
 const questionForm = document.getElementById("questionForm");
+const qType = document.getElementById("qType");
 const qQuestion = document.getElementById("qQuestion");
 const qAnswer = document.getElementById("qAnswer");
 const qCategory = document.getElementById("qCategory");
+const qCategoryTF = document.getElementById("qCategoryTF");
+const qTFAnswer = document.getElementById("qTFAnswer");
+const qGold = document.getElementById("qGold");
+const standardAnswerFields = document.getElementById("standardAnswerFields");
+const tfAnswerFields = document.getElementById("tfAnswerFields");
 const distractorFields = document.getElementById("distractorFields");
 const genDistractorsBtn = document.getElementById("genDistractorsBtn");
 const questionList = document.getElementById("questionList");
@@ -184,12 +203,20 @@ const bankSearch = document.getElementById("bankSearch");
 const cancelEditBtn = document.getElementById("cancelEditBtn");
 const categoryList = document.getElementById("categoryList");
 const studyCategory = document.getElementById("studyCategory");
+const studyWeek = document.getElementById("studyWeek");
+
+qType.addEventListener("change", () => {
+  const isTF = qType.value === "truefalse";
+  standardAnswerFields.classList.toggle("hidden", isTF);
+  tfAnswerFields.classList.toggle("hidden", !isTF);
+  if (isTF) distractorFields.classList.add("hidden");
+});
 
 const questionsQuery = query(collection(db, "questions"), orderBy("createdAt", "desc"));
 onSnapshot(questionsQuery, (snap) => {
   questions = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   renderQuestionList();
-  renderCategoryOptions();
+  renderFilterOptions();
 }, (err) => {
   console.error(err);
   questionList.innerHTML = `<p class="muted small">Couldn't load the question bank. Check your Firebase setup in js/firebase-config.js and README.md.</p>`;
@@ -198,7 +225,7 @@ onSnapshot(questionsQuery, (snap) => {
 genDistractorsBtn.addEventListener("click", () => {
   const answer = qAnswer.value.trim();
   if (!answer) { qAnswer.focus(); return; }
-  const pool = questions.map((q) => q.answer);
+  const pool = questions.filter((q) => q.type !== "truefalse").map((q) => q.answer);
   const [d0, d1, d2] = generateDistractors(answer, pool);
   document.getElementById("d0").value = d0;
   document.getElementById("d1").value = d1;
@@ -209,27 +236,37 @@ genDistractorsBtn.addEventListener("click", () => {
 questionForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const user = getCurrentUser();
+  const type = qType.value;
   const question = qQuestion.value.trim();
-  const answer = qAnswer.value.trim();
-  const category = qCategory.value.trim();
-  const distractors = distractorFields.classList.contains("hidden")
-    ? []
-    : ["d0", "d1", "d2"].map((id) => document.getElementById(id).value.trim()).filter(Boolean);
+  const gold = qGold.checked;
+  if (!question) return;
 
-  if (!question || !answer) return;
+  let payload = { question, type, gold, updatedBy: user, updatedAt: serverTimestamp() };
+
+  if (type === "truefalse") {
+    payload.answer = qTFAnswer.value;
+    payload.category = qCategoryTF.value.trim();
+    payload.distractors = [];
+  } else {
+    const answer = qAnswer.value.trim();
+    if (!answer) { qAnswer.focus(); return; }
+    payload.answer = answer;
+    payload.category = qCategory.value.trim();
+    payload.distractors = distractorFields.classList.contains("hidden")
+      ? []
+      : ["d0", "d1", "d2"].map((id) => document.getElementById(id).value.trim()).filter(Boolean);
+  }
 
   try {
     if (editingId) {
-      await updateDoc(doc(db, "questions", editingId), {
-        question, answer, category, distractors,
-        updatedBy: user, updatedAt: serverTimestamp()
-      });
+      await updateDoc(doc(db, "questions", editingId), payload);
       showToast("Question updated");
     } else {
+      const now = new Date();
       await addDoc(collection(db, "questions"), {
-        question, answer, category, distractors,
-        createdBy: user, createdAt: serverTimestamp(),
-        updatedBy: user, updatedAt: serverTimestamp()
+        ...payload,
+        week: computeWeek(now),
+        createdBy: user, createdAt: serverTimestamp()
       });
       showToast("Question added to the bank");
     }
@@ -244,19 +281,29 @@ cancelEditBtn.addEventListener("click", resetQuestionForm);
 
 function resetQuestionForm() {
   editingId = null;
+  editingWeek = null;
   questionForm.reset();
+  qType.value = "standard";
+  standardAnswerFields.classList.remove("hidden");
+  tfAnswerFields.classList.add("hidden");
   distractorFields.classList.add("hidden");
   cancelEditBtn.classList.add("hidden");
   questionForm.querySelector("button[type=submit]").textContent = "Save to question bank";
 }
 
-function renderCategoryOptions() {
+function renderFilterOptions() {
   const cats = [...new Set(questions.map((q) => q.category).filter(Boolean))].sort();
   categoryList.innerHTML = cats.map((c) => `<option value="${escapeHtml(c)}">`).join("");
-  const prevVal = studyCategory.value;
+  const prevCat = studyCategory.value;
   studyCategory.innerHTML = `<option value="all">All categories</option>` +
     cats.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
-  if ([...studyCategory.options].some((o) => o.value === prevVal)) studyCategory.value = prevVal;
+  if ([...studyCategory.options].some((o) => o.value === prevCat)) studyCategory.value = prevCat;
+
+  const weeks = [...new Set(questions.map((q) => q.week).filter((w) => w !== undefined && w !== null))].sort((a, b) => a - b);
+  const prevWeek = studyWeek.value;
+  studyWeek.innerHTML = `<option value="all">All weeks</option>` +
+    weeks.map((w) => `<option value="${w}">Week ${w}</option>`).join("");
+  if ([...studyWeek.options].some((o) => o.value === prevWeek)) studyWeek.value = prevWeek;
 }
 
 function renderQuestionList() {
@@ -274,19 +321,23 @@ function renderQuestionList() {
   questionList.innerHTML = filtered.map((q) => {
     const created = q.createdAt?.toDate ? timeAgo(q.createdAt.toDate()) : "";
     const editedNote = (q.updatedBy && q.updatedBy !== q.createdBy) ? ` &middot; edited by ${escapeHtml(q.updatedBy)}` : "";
+    const isTF = q.type === "truefalse";
     return `
-      <div class="question-card" data-id="${q.id}">
+      <div class="question-card ${q.gold ? "gold-card" : ""}" data-id="${q.id}">
         <div class="q-top">
           <div>
+            <span class="q-type-tag">${isTF ? "True / False" : "Standard"}</span>
             <p class="q-text">${escapeHtml(q.question)}</p>
             <p class="q-answer">&#10003; ${escapeHtml(q.answer)}</p>
-            ${q.distractors && q.distractors.length ? `<p class="q-distractors">Wrong answers: ${q.distractors.map(escapeHtml).join(" &nbsp;|&nbsp; ")}</p>` : `<p class="q-distractors">No multiple-choice options yet</p>`}
+            ${!isTF ? (q.distractors && q.distractors.length ? `<p class="q-distractors">Wrong answers: ${q.distractors.map(escapeHtml).join(" &nbsp;|&nbsp; ")}</p>` : `<p class="q-distractors">No multiple-choice options yet</p>`) : ""}
             <div class="q-meta">
               ${q.category ? `<span class="q-category-tag">${escapeHtml(q.category)}</span>` : ""}
+              ${q.week !== undefined ? `<span class="q-week-tag">Week ${q.week}</span>` : ""}
               <span>added by <strong>${escapeHtml(q.createdBy || "unknown")}</strong> ${created}${editedNote}</span>
             </div>
           </div>
           <div class="q-actions">
+            <button class="gold-toggle-btn ${q.gold ? "is-gold" : ""}" data-action="gold" title="Toggle gold">&#11088;</button>
             <button class="btn btn-ghost small" data-action="edit">Edit</button>
             <button class="btn btn-danger small" data-action="delete">Delete</button>
           </div>
@@ -298,23 +349,42 @@ function renderQuestionList() {
     const id = card.dataset.id;
     card.querySelector('[data-action="edit"]').addEventListener("click", () => startEditQuestion(id));
     card.querySelector('[data-action="delete"]').addEventListener("click", () => deleteQuestion(id));
+    card.querySelector('[data-action="gold"]').addEventListener("click", () => toggleGold(id));
   });
+}
+
+async function toggleGold(id) {
+  const q = questions.find((x) => x.id === id);
+  if (!q) return;
+  try {
+    await updateDoc(doc(db, "questions", id), { gold: !q.gold });
+  } catch (err) {
+    console.error(err);
+    showToast("Couldn't update gold status.");
+  }
 }
 
 function startEditQuestion(id) {
   const q = questions.find((x) => x.id === id);
   if (!q) return;
   editingId = id;
+  editingWeek = q.week;
+  qType.value = q.type === "truefalse" ? "truefalse" : "standard";
+  qType.dispatchEvent(new Event("change"));
   qQuestion.value = q.question;
-  qAnswer.value = q.answer;
-  qCategory.value = q.category || "";
-  if (q.distractors && q.distractors.length) {
-    document.getElementById("d0").value = q.distractors[0] || "";
-    document.getElementById("d1").value = q.distractors[1] || "";
-    document.getElementById("d2").value = q.distractors[2] || "";
-    distractorFields.classList.remove("hidden");
+  qGold.checked = !!q.gold;
+  if (q.type === "truefalse") {
+    qTFAnswer.value = q.answer;
+    qCategoryTF.value = q.category || "";
   } else {
-    distractorFields.classList.add("hidden");
+    qAnswer.value = q.answer;
+    qCategory.value = q.category || "";
+    if (q.distractors && q.distractors.length) {
+      document.getElementById("d0").value = q.distractors[0] || "";
+      document.getElementById("d1").value = q.distractors[1] || "";
+      document.getElementById("d2").value = q.distractors[2] || "";
+      distractorFields.classList.remove("hidden");
+    }
   }
   cancelEditBtn.classList.remove("hidden");
   questionForm.querySelector("button[type=submit]").textContent = "Save changes";
@@ -340,14 +410,21 @@ function escapeHtml(str) {
 }
 
 // Allow notes-assist.js to push a draft into this form
-window.leoprepFillQuestionForm = (question, answer) => {
+window.leoprepFillQuestionForm = (question, answer, opts = {}) => {
   resetQuestionForm();
+  const type = opts.type === "truefalse" ? "truefalse" : "standard";
+  qType.value = type;
+  qType.dispatchEvent(new Event("change"));
   qQuestion.value = question;
-  qAnswer.value = answer;
+  qGold.checked = !!opts.gold;
+  if (type === "truefalse") {
+    qTFAnswer.value = (answer === "False" ? "False" : "True");
+  } else {
+    qAnswer.value = answer;
+  }
   switchTab("bank");
   questionForm.scrollIntoView({ behavior: "smooth" });
-  if (question) qCategory.focus();
-  else qQuestion.focus();
+  if (question) qCategory.focus(); else qQuestion.focus();
 };
 
 // ---------------------------------------------------------------
@@ -358,58 +435,78 @@ const studyEmptyMsg = document.getElementById("studyEmptyMsg");
 const studyArea = document.getElementById("studyArea");
 const flashcardView = document.getElementById("flashcardView");
 const mcView = document.getElementById("mcView");
+const tfView = document.getElementById("tfView");
 const flashcard = document.getElementById("flashcard");
 const flashcardFront = document.getElementById("flashcardFront");
 const flashcardBack = document.getElementById("flashcardBack");
 const mcQuestion = document.getElementById("mcQuestion");
 const mcOptions = document.getElementById("mcOptions");
+const tfQuestion = document.getElementById("tfQuestion");
+const tfTrueBtn = document.getElementById("tfTrueBtn");
+const tfFalseBtn = document.getElementById("tfFalseBtn");
 const progressLabel = document.getElementById("progressLabel");
 const scoreLabel = document.getElementById("scoreLabel");
 const prevBtn = document.getElementById("prevBtn");
 const nextBtn = document.getElementById("nextBtn");
 const endStudyBtn = document.getElementById("endStudyBtn");
+const markCorrectBtn = document.getElementById("markCorrectBtn");
 
 let sessionQuestions = [];
 let sessionIndex = 0;
 let sessionFormat = "flashcard";
 let sessionScore = 0;
+let sessionWrong = 0;
 let sessionAnswered = [];
 
 startStudyBtn.addEventListener("click", () => {
+  sessionFormat = document.getElementById("studyFormat").value;
   const cat = studyCategory.value;
-  const pool = cat === "all" ? questions : questions.filter((q) => q.category === cat);
+  const wk = studyWeek.value;
+
+  let pool = questions.filter((q) => (sessionFormat === "truefalse") === (q.type === "truefalse"));
+  if (cat !== "all") pool = pool.filter((q) => q.category === cat);
+  if (wk !== "all") pool = pool.filter((q) => String(q.week) === wk);
+
   if (pool.length === 0) {
     studyEmptyMsg.classList.remove("hidden");
     studyArea.classList.add("hidden");
     return;
   }
   studyEmptyMsg.classList.add("hidden");
-  sessionFormat = document.getElementById("studyFormat").value;
   const shuffle = document.getElementById("shuffleToggle").checked;
   sessionQuestions = shuffle ? shuffleArr(pool) : [...pool];
   sessionIndex = 0;
   sessionScore = 0;
+  sessionWrong = 0;
   sessionAnswered = new Array(sessionQuestions.length).fill(false);
   studyArea.classList.remove("hidden");
+  markCorrectBtn.classList.toggle("hidden", sessionFormat !== "flashcard");
   renderStudyQuestion();
 });
+
+function updateScoreLabel() {
+  scoreLabel.textContent = `\u2713 ${sessionScore}   \u2717 ${sessionWrong}`;
+}
 
 function renderStudyQuestion() {
   const q = sessionQuestions[sessionIndex];
   progressLabel.textContent = `${sessionIndex + 1} / ${sessionQuestions.length}`;
-  scoreLabel.textContent = sessionFormat === "mc" ? `Score: ${sessionScore}` : "";
+  updateScoreLabel();
+
+  flashcardView.classList.add("hidden");
+  mcView.classList.add("hidden");
+  tfView.classList.add("hidden");
 
   if (sessionFormat === "flashcard") {
     flashcardView.classList.remove("hidden");
-    mcView.classList.add("hidden");
-    flashcard.classList.remove("flipped");
+    flashcard.classList.remove("flipped", "flash-good", "flash-bad");
+    flashcard.classList.toggle("is-gold", !!q.gold);
     flashcardFront.textContent = q.question;
     flashcardBack.textContent = q.answer;
-  } else {
-    flashcardView.classList.add("hidden");
+  } else if (sessionFormat === "mc") {
     mcView.classList.remove("hidden");
-    mcQuestion.textContent = q.question;
-    const pool = questions.map((x) => x.answer);
+    mcQuestion.innerHTML = (q.gold ? `<span class="gold-question-tag">&#11088; Gold</span><br>` : "") + escapeHtml(q.question);
+    const pool = questions.filter((x) => x.type !== "truefalse").map((x) => x.answer);
     const distractors = (q.distractors && q.distractors.length === 3) ? q.distractors : generateDistractors(q.answer, pool);
     const opts = shuffleArr([{ text: q.answer, correct: true }, ...distractors.map((d) => ({ text: d, correct: false }))]);
     mcOptions.innerHTML = "";
@@ -417,35 +514,70 @@ function renderStudyQuestion() {
       const b = document.createElement("button");
       b.className = "mc-option";
       b.textContent = opt.text;
-      b.addEventListener("click", () => handleMcAnswer(b, opt, opts));
+      b.addEventListener("click", () => handleChoiceAnswer(b, opt, opts, mcOptions, mcView));
       mcOptions.appendChild(b);
+    });
+  } else {
+    tfView.classList.remove("hidden");
+    tfQuestion.innerHTML = (q.gold ? `<span class="gold-question-tag">&#11088; Gold</span><br>` : "") + escapeHtml(q.question);
+    [tfTrueBtn, tfFalseBtn].forEach((b) => {
+      b.disabled = false;
+      b.classList.remove("correct", "incorrect");
+      b.onclick = () => handleChoiceAnswer(b, { text: b.dataset.value, correct: b.dataset.value === q.answer }, [
+        { text: "True", correct: q.answer === "True" }, { text: "False", correct: q.answer === "False" }
+      ], null, tfView, [tfTrueBtn, tfFalseBtn]);
     });
   }
 }
 
-function handleMcAnswer(btn, opt, allOpts) {
+function handleChoiceAnswer(btn, opt, allOpts, optionsContainer, viewEl, explicitButtons) {
   if (sessionAnswered[sessionIndex]) return;
   sessionAnswered[sessionIndex] = true;
-  const buttons = [...mcOptions.querySelectorAll(".mc-option")];
+  const buttons = explicitButtons || [...optionsContainer.querySelectorAll(".mc-option, .tf-option")];
   buttons.forEach((b) => (b.disabled = true));
   btn.classList.add(opt.correct ? "correct" : "incorrect");
   if (opt.correct) {
     sessionScore++;
   } else {
-    const correctBtn = buttons.find((b, i) => allOpts[i].correct);
+    sessionWrong++;
+    const correctBtn = buttons.find((b, i) => allOpts[i] ? allOpts[i].correct : b.dataset.value === sessionQuestions[sessionIndex].answer);
     if (correctBtn) correctBtn.classList.add("correct");
   }
-  scoreLabel.textContent = `Score: ${sessionScore}`;
+  viewEl.classList.remove("flash-good", "flash-bad");
+  void viewEl.offsetWidth;
+  viewEl.classList.add(opt.correct ? "flash-good" : "flash-bad");
+  updateScoreLabel();
 }
 
 flashcard.addEventListener("click", () => flashcard.classList.toggle("flipped"));
+
+markCorrectBtn.addEventListener("click", () => {
+  if (!sessionAnswered[sessionIndex]) {
+    sessionAnswered[sessionIndex] = true;
+    sessionScore++;
+    updateScoreLabel();
+  }
+  flashcard.classList.remove("flash-bad");
+  void flashcard.offsetWidth;
+  flashcard.classList.add("flash-good");
+  setTimeout(() => advanceCard(), 350);
+});
+
+function advanceCard() {
+  if (sessionIndex < sessionQuestions.length - 1) { sessionIndex++; renderStudyQuestion(); }
+  else showToast("That's the last card in this session.");
+}
 
 prevBtn.addEventListener("click", () => {
   if (sessionIndex > 0) { sessionIndex--; renderStudyQuestion(); }
 });
 nextBtn.addEventListener("click", () => {
-  if (sessionIndex < sessionQuestions.length - 1) { sessionIndex++; renderStudyQuestion(); }
-  else showToast("That's the last card in this session.");
+  if (sessionFormat === "flashcard" && !sessionAnswered[sessionIndex]) {
+    sessionAnswered[sessionIndex] = true;
+    sessionWrong++;
+    updateScoreLabel();
+  }
+  advanceCard();
 });
 endStudyBtn.addEventListener("click", () => {
   studyArea.classList.add("hidden");
@@ -456,7 +588,7 @@ endStudyBtn.addEventListener("click", () => {
 // ---------------------------------------------------------------
 let events = [];
 let calView = "month";
-let calCursor = new Date(); // anchor date for current view
+let calCursor = new Date();
 let selectedEventId = null;
 
 const calMonthGrid = document.getElementById("calMonthGrid");
@@ -521,7 +653,7 @@ function renderMonth() {
   calLabel.textContent = calCursor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
   const firstOfMonth = new Date(year, month, 1);
-  const startOffset = firstOfMonth.getDay(); // 0=Sun
+  const startOffset = firstOfMonth.getDay();
   const gridStart = new Date(year, month, 1 - startOffset);
   const today = new Date();
 

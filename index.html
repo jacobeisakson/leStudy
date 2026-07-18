@@ -16,9 +16,14 @@
   <div class="name-gate-card">
     <div class="badge-mark">
       <svg viewBox="0 0 48 48" width="44" height="44" xmlns="http://www.w3.org/2000/svg">
-        <path d="M24 2 L44 10 V24 C44 36 36 44 24 46 C12 44 4 36 4 24 V10 Z" fill="#1E3A8A" stroke="#FFFFFF" stroke-width="2"/>
-        <path d="M13 27 L24 16 L35 27" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M13 35 L24 24 L35 35" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <defs>
+          <linearGradient id="badgeGradGate" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#3B5FCC"/>
+            <stop offset="1" stop-color="#14275C"/>
+          </linearGradient>
+        </defs>
+        <path d="M24 2 L44 10 V24 C44 36 36 44 24 46 C12 44 4 36 4 24 V10 Z" fill="url(#badgeGradGate)" stroke="#FFFFFF" stroke-width="2"/>
+        <ellipse cx="17" cy="14" rx="11" ry="6.5" fill="#FFFFFF" opacity="0.14"/>
       </svg>
     </div>
     <h1>Who's studying?</h1>
@@ -34,9 +39,14 @@
     <div class="brand">
       <span class="badge-mark">
         <svg viewBox="0 0 48 48" width="38" height="38" xmlns="http://www.w3.org/2000/svg">
-          <path d="M24 2 L44 10 V24 C44 36 36 44 24 46 C12 44 4 36 4 24 V10 Z" fill="#1E3A8A" stroke="#FFFFFF" stroke-width="2"/>
-          <path d="M13 27 L24 16 L35 27" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M13 35 L24 24 L35 35" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          <defs>
+            <linearGradient id="badgeGradHeader" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#3B5FCC"/>
+              <stop offset="1" stop-color="#14275C"/>
+            </linearGradient>
+          </defs>
+          <path d="M24 2 L44 10 V24 C44 36 36 44 24 46 C12 44 4 36 4 24 V10 Z" fill="url(#badgeGradHeader)" stroke="#FFFFFF" stroke-width="2"/>
+          <ellipse cx="17" cy="14" rx="11" ry="6.5" fill="#FFFFFF" opacity="0.14"/>
         </svg>
       </span>
       <div class="brand-text">
@@ -54,8 +64,9 @@
   <nav class="tabs" role="tablist">
     <button class="tab-btn active" data-tab="study" role="tab">Study</button>
     <button class="tab-btn" data-tab="bank" role="tab">Question Bank</button>
-    <button class="tab-btn" data-tab="notes" role="tab">Notes Assist</button>
+    <button class="tab-btn" data-tab="upload" role="tab">Upload</button>
     <button class="tab-btn" data-tab="calendar" role="tab">Calendar</button>
+    <button class="tab-btn" data-tab="help" role="tab">Help</button>
   </nav>
 
   <main class="tab-panels">
@@ -73,6 +84,7 @@
             <select id="studyFormat">
               <option value="flashcard">Flashcards</option>
               <option value="mc">Multiple choice</option>
+              <option value="truefalse">True / False</option>
             </select>
           </label>
           <label>Category
@@ -80,12 +92,17 @@
               <option value="all">All categories</option>
             </select>
           </label>
+          <label>Week
+            <select id="studyWeek">
+              <option value="all">All weeks</option>
+            </select>
+          </label>
           <label class="checkbox-label">
             <input type="checkbox" id="shuffleToggle" checked> Shuffle
           </label>
         </div>
         <button id="startStudyBtn" class="btn btn-primary">Start session</button>
-        <p id="studyEmptyMsg" class="muted small hidden">No questions yet &mdash; add some in the Question Bank tab first.</p>
+        <p id="studyEmptyMsg" class="muted small hidden">No matching questions yet &mdash; add some in the Question Bank tab first, or widen your filters.</p>
       </div>
 
       <div id="studyArea" class="study-area hidden">
@@ -116,10 +133,20 @@
           <div id="mcOptions" class="mc-options"></div>
         </div>
 
+        <!-- True / False -->
+        <div id="tfView" class="tf-view hidden">
+          <p id="tfQuestion" class="mc-question"></p>
+          <div class="tf-options">
+            <button class="tf-option" id="tfTrueBtn" data-value="True">True</button>
+            <button class="tf-option" id="tfFalseBtn" data-value="False">False</button>
+          </div>
+        </div>
+
         <div class="study-nav">
           <button id="prevBtn" class="btn btn-ghost">&larr; Prev</button>
           <button id="nextBtn" class="btn btn-primary">Next &rarr;</button>
           <button id="endStudyBtn" class="btn btn-ghost">End session</button>
+          <button id="markCorrectBtn" class="btn btn-mark-correct hidden">Mark correct &#10003;</button>
         </div>
       </div>
     </section>
@@ -128,21 +155,43 @@
     <section id="tab-bank" class="tab-panel">
       <div class="panel-head">
         <h2>Question bank</h2>
-        <p class="panel-sub">Add a question and answer. We'll draft three wrong-answer options for multiple choice &mdash; edit them however you like before saving.</p>
+        <p class="panel-sub">Add a question and answer. We'll draft three wrong-answer options for multiple choice &mdash; edit them however you like before saving. New questions are automatically filed under this week.</p>
       </div>
 
       <div class="card">
         <form id="questionForm">
+          <div class="field-row">
+            <label>Question type
+              <select id="qType">
+                <option value="standard">Standard (flashcard / multiple choice)</option>
+                <option value="truefalse">True / False</option>
+              </select>
+            </label>
+          </div>
+
           <label class="full">Question
             <textarea id="qQuestion" rows="2" required placeholder="e.g. What is the maximum speed a vehicle may exceed the posted limit to pass safely on a two-lane road?"></textarea>
           </label>
-          <div class="field-row">
+
+          <div id="standardAnswerFields" class="field-row">
             <label>Correct answer
-              <input type="text" id="qAnswer" required placeholder="e.g. 15 mph">
+              <input type="text" id="qAnswer" placeholder="e.g. 15 mph">
             </label>
             <label>Category <span class="muted small">(optional)</span>
               <input type="text" id="qCategory" placeholder="e.g. Traffic Law" list="categoryList">
               <datalist id="categoryList"></datalist>
+            </label>
+          </div>
+
+          <div id="tfAnswerFields" class="field-row hidden">
+            <label>Correct answer
+              <select id="qTFAnswer">
+                <option value="True">True</option>
+                <option value="False">False</option>
+              </select>
+            </label>
+            <label>Category <span class="muted small">(optional)</span>
+              <input type="text" id="qCategoryTF" placeholder="e.g. Traffic Law" list="categoryList">
             </label>
           </div>
 
@@ -154,6 +203,10 @@
             <input type="text" class="distractor-input" id="d1">
             <input type="text" class="distractor-input" id="d2">
           </div>
+
+          <label class="checkbox-label gold-checkbox">
+            <input type="checkbox" id="qGold"> &#11088; Mark as gold &mdash; guaranteed on the exam
+          </label>
 
           <div class="notes-actions">
             <button type="submit" class="btn btn-primary">Save to question bank</button>
@@ -169,11 +222,11 @@
       <div id="questionList" class="question-list"></div>
     </section>
 
-    <!-- TAB: NOTES ASSIST -->
-    <section id="tab-notes" class="tab-panel">
+    <!-- TAB: UPLOAD (notes assist) -->
+    <section id="tab-upload" class="tab-panel">
       <div class="panel-head">
         <h2>Turn your notes into questions</h2>
-        <p class="panel-sub">Upload a PDF or paste text. This reads your outline structure &mdash; topics, nested bullets, "Term - definition" lines, and anything wrapped in <strong>**double asterisks**</strong> &mdash; and drafts questions from each pattern. No AI key required for this pass.</p>
+        <p class="panel-sub">Upload a PDF or paste text. This reads your outline structure &mdash; topics, nested bullets, and term-definition lines &mdash; and drafts flashcard, multiple choice, and true/false questions from your notes. Mark any as gold "need to know" questions guaranteed to show up on the exam, then send them to the Question Bank when you're happy with them.</p>
       </div>
 
       <div class="card">
@@ -184,31 +237,11 @@
             <p class="muted small">Text is extracted right in your browser &mdash; nothing is uploaded anywhere.</p>
           </div>
           <div class="or-divider">or</div>
-          <textarea id="pasteNotes" placeholder="Paste notes text here. Keep your bullets/indentation and **double asterisks** as typed &mdash; e.g.&#10;&#10;Ethics - values of right and wrong&#10;&#10;Use of Force&#10;* De-escalation&#10;   * Officers must attempt **verbal de-escalation** before force when feasible" rows="8"></textarea>
+          <textarea id="pasteNotes" placeholder="Paste notes text here. Keep your bullets/indentation as typed &mdash; e.g.&#10;&#10;Ethics - values of right and wrong&#10;&#10;Use of Force&#10;* De-escalation&#10;   * Officers must attempt verbal de-escalation before force when feasible" rows="8"></textarea>
         </div>
         <div class="notes-actions">
-          <button id="extractBtn" class="btn btn-primary">Parse notes</button>
+          <button id="extractBtn" class="btn btn-primary">Generate Questions</button>
           <span id="notesStatus" class="muted small"></span>
-        </div>
-      </div>
-
-      <div class="card ai-card">
-        <div class="ai-card-head">
-          <h3>AI-assisted generation <span class="q-category-tag">optional</span></h3>
-          <button id="aiToggleBtn" class="link-btn" type="button">show</button>
-        </div>
-        <div id="aiSection" class="ai-section hidden">
-          <p class="muted small">Uses Google's free-tier Gemini API. Your key is stored only in your own browser and sent directly to Google, never to the shared database. Steps to get a free key are in the README.</p>
-          <div class="field-row">
-            <label>Gemini API key
-              <input type="password" id="geminiKey" placeholder="Paste your free Gemini API key" autocomplete="off">
-            </label>
-          </div>
-          <div class="notes-actions">
-            <button id="aiGenerateBtn" class="btn btn-secondary" type="button">Generate with AI</button>
-            <button id="saveKeyBtn" class="btn btn-ghost small" type="button">Save key to this browser</button>
-            <span id="aiStatus" class="muted small"></span>
-          </div>
         </div>
       </div>
 
@@ -249,6 +282,34 @@
           <button id="closeDayDetail" class="link-btn">close</button>
         </div>
         <div id="dayDetailEvents"></div>
+      </div>
+    </section>
+
+    <!-- TAB: HELP -->
+    <section id="tab-help" class="tab-panel">
+      <div class="card help-contact">
+        <h2>Jacob Isakson</h2>
+        <p class="muted">678-548-4569</p>
+      </div>
+
+      <div class="card">
+        <h3>How this site works</h3>
+        <ul class="help-list">
+          <li><strong>Study</strong> &mdash; run a study session as flashcards, multiple choice, or true/false. Filter by category or by week, and shuffle if you want. For flashcards, tap "Mark correct" to track what you actually know; for multiple choice and true/false, your score tracks automatically as you answer.</li>
+          <li><strong>Question Bank</strong> &mdash; add questions by hand, or edit/delete anything already in there. Every question is tagged with whoever added it, plus which week it was added in.</li>
+          <li><strong>Upload</strong> &mdash; upload a PDF or paste notes, and it drafts questions from your outline structure (topics, nested bullets, "Term - definition" lines). Review each draft, mark it gold if it's need-to-know, then send it to the Question Bank.</li>
+          <li><strong>Calendar</strong> &mdash; shared calendar for test dates and study sessions, month/week/day views.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>Gold vs. standard questions</h3>
+        <p>Any question can be marked <strong>&#11088; gold</strong> &mdash; that means it's guaranteed to show up on the actual exam. Gold questions get a gold outline everywhere they appear (question bank list, flashcards, quiz questions) so they're easy to spot and prioritize. Everything else is a standard question &mdash; still worth knowing, just not flagged as guaranteed.</p>
+      </div>
+
+      <div class="card">
+        <h3>Weeks</h3>
+        <p>Every question is automatically filed under the week it was added &mdash; Week 1 is July 13&ndash;19, Week 2 is July 20&ndash;26, and so on, each week starting Monday. Use the Week filter on the Study tab to study just this week's material, or everything so far.</p>
       </div>
     </section>
 
