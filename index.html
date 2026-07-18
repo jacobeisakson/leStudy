@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>10-22 Prep &mdash; LEO Exam Study Squad</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Name gate: shown until a user sets their name -->
+<div id="nameGate" class="name-gate">
+  <div class="name-gate-card">
+    <div class="badge-mark">&#9733;</div>
+    <h1>Who's studying?</h1>
+    <p>Your name is stamped on anything you add or edit, so the squad knows who to thank (or blame).</p>
+    <input type="text" id="nameInput" maxlength="30" placeholder="Enter your name" autocomplete="off">
+    <button id="nameSubmit" class="btn btn-primary">Start studying</button>
+  </div>
+</div>
+
+<div id="app" class="app hidden">
+
+  <header class="site-header">
+    <div class="brand">
+      <span class="badge-mark">&#9733;</span>
+      <div class="brand-text">
+        <span class="brand-title">10-22 PREP</span>
+        <span class="brand-sub">LEO Exam Study Squad</span>
+      </div>
+    </div>
+    <div class="user-chip">
+      <span class="user-dot"></span>
+      <span id="currentUserLabel">&mdash;</span>
+      <button id="changeNameBtn" class="link-btn">switch</button>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab-btn active" data-tab="notes" role="tab">Notes Assist</button>
+    <button class="tab-btn" data-tab="study" role="tab">Study</button>
+    <button class="tab-btn" data-tab="bank" role="tab">Question Bank</button>
+    <button class="tab-btn" data-tab="calendar" role="tab">Calendar</button>
+  </nav>
+
+  <main class="tab-panels">
+
+    <!-- TAB 1: NOTES ASSIST -->
+    <section id="tab-notes" class="tab-panel active">
+      <div class="panel-head">
+        <h2>Turn your notes into questions</h2>
+        <p class="panel-sub">Upload a PDF or paste text. This pulls out candidate sentences so you can quickly draft flashcards &mdash; no AI key required. Full auto-generation is a planned upgrade; see the README.</p>
+      </div>
+
+      <div class="card">
+        <div class="notes-input-row">
+          <div class="upload-box" id="dropZone">
+            <input type="file" id="pdfInput" accept="application/pdf" hidden>
+            <p><strong>Drop a PDF</strong> or <button id="pdfBrowseBtn" class="link-btn">browse files</button></p>
+            <p class="muted small">Text is extracted right in your browser &mdash; nothing is uploaded anywhere.</p>
+          </div>
+          <div class="or-divider">or</div>
+          <textarea id="pasteNotes" placeholder="Paste notes text here..." rows="6"></textarea>
+        </div>
+        <div class="notes-actions">
+          <button id="extractBtn" class="btn btn-primary">Find candidate sentences</button>
+          <span id="notesStatus" class="muted small"></span>
+        </div>
+      </div>
+
+      <div id="candidateList" class="candidate-list"></div>
+    </section>
+
+    <!-- TAB 2: STUDY -->
+    <section id="tab-study" class="tab-panel">
+      <div class="panel-head">
+        <h2>Study session</h2>
+        <p class="panel-sub">Pull questions from the shared bank.</p>
+      </div>
+
+      <div class="card study-setup">
+        <div class="field-row">
+          <label>Format
+            <select id="studyFormat">
+              <option value="flashcard">Flashcards</option>
+              <option value="mc">Multiple choice</option>
+            </select>
+          </label>
+          <label>Category
+            <select id="studyCategory">
+              <option value="all">All categories</option>
+            </select>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="shuffleToggle" checked> Shuffle
+          </label>
+        </div>
+        <button id="startStudyBtn" class="btn btn-primary">Start session</button>
+        <p id="studyEmptyMsg" class="muted small hidden">No questions yet &mdash; add some in the Question Bank tab first.</p>
+      </div>
+
+      <div id="studyArea" class="study-area hidden">
+        <div class="study-progress">
+          <span id="progressLabel">1 / 1</span>
+          <span id="scoreLabel"></span>
+        </div>
+
+        <!-- Flashcard -->
+        <div id="flashcardView" class="flashcard-view hidden">
+          <div class="flashcard" id="flashcard">
+            <div class="flashcard-face flashcard-front">
+              <span class="face-label">Question</span>
+              <p id="flashcardFront"></p>
+              <span class="muted small">Tap to reveal answer</span>
+            </div>
+            <div class="flashcard-face flashcard-back">
+              <span class="face-label">Answer</span>
+              <p id="flashcardBack"></p>
+              <span class="muted small">Tap to flip back</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Multiple choice -->
+        <div id="mcView" class="mc-view hidden">
+          <p id="mcQuestion" class="mc-question"></p>
+          <div id="mcOptions" class="mc-options"></div>
+        </div>
+
+        <div class="study-nav">
+          <button id="prevBtn" class="btn btn-ghost">&larr; Prev</button>
+          <button id="nextBtn" class="btn btn-primary">Next &rarr;</button>
+          <button id="endStudyBtn" class="btn btn-ghost">End session</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: QUESTION BANK / MANUAL CREATION -->
+    <section id="tab-bank" class="tab-panel">
+      <div class="panel-head">
+        <h2>Question bank</h2>
+        <p class="panel-sub">Add a question and answer. We'll draft three wrong-answer options for multiple choice &mdash; edit them however you like before saving.</p>
+      </div>
+
+      <div class="card">
+        <form id="questionForm">
+          <label class="full">Question
+            <textarea id="qQuestion" rows="2" required placeholder="e.g. What is the maximum speed a vehicle may exceed the posted limit to pass safely on a two-lane road?"></textarea>
+          </label>
+          <div class="field-row">
+            <label>Correct answer
+              <input type="text" id="qAnswer" required placeholder="e.g. 15 mph">
+            </label>
+            <label>Category <span class="muted small">(optional)</span>
+              <input type="text" id="qCategory" placeholder="e.g. Traffic Law" list="categoryList">
+              <datalist id="categoryList"></datalist>
+            </label>
+          </div>
+
+          <button type="button" id="genDistractorsBtn" class="btn btn-secondary">Generate multiple-choice options</button>
+
+          <div id="distractorFields" class="distractor-fields hidden">
+            <span class="face-label">Wrong answers (edit as needed)</span>
+            <input type="text" class="distractor-input" id="d0">
+            <input type="text" class="distractor-input" id="d1">
+            <input type="text" class="distractor-input" id="d2">
+          </div>
+
+          <div class="notes-actions">
+            <button type="submit" class="btn btn-primary">Save to question bank</button>
+            <button type="button" id="cancelEditBtn" class="btn btn-ghost hidden">Cancel edit</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="panel-head">
+        <h3>All questions <span id="questionCount" class="muted"></span></h3>
+        <input type="text" id="bankSearch" placeholder="Search questions..." class="search-input">
+      </div>
+      <div id="questionList" class="question-list"></div>
+    </section>
+
+    <!-- TAB 4: CALENDAR -->
+    <section id="tab-calendar" class="tab-panel">
+      <div class="panel-head">
+        <h2>Test calendar</h2>
+        <p class="panel-sub">Shared calendar for test dates and study sessions.</p>
+      </div>
+
+      <div class="card">
+        <div class="calendar-toolbar">
+          <div class="cal-view-toggle">
+            <button class="view-btn active" data-view="month">Month</button>
+            <button class="view-btn" data-view="week">Week</button>
+            <button class="view-btn" data-view="day">Day</button>
+          </div>
+          <div class="cal-nav">
+            <button id="calPrevBtn" class="btn btn-ghost small">&larr;</button>
+            <span id="calLabel" class="cal-label"></span>
+            <button id="calNextBtn" class="btn btn-ghost small">&rarr;</button>
+            <button id="calTodayBtn" class="btn btn-ghost small">Today</button>
+          </div>
+          <button id="addEventBtn" class="btn btn-primary">+ Add event</button>
+        </div>
+
+        <div id="calMonthGrid" class="cal-month-grid"></div>
+        <div id="calWeekView" class="cal-week-view hidden"></div>
+        <div id="calDayView" class="cal-day-view hidden"></div>
+      </div>
+
+      <div id="calDayDetail" class="card day-detail hidden">
+        <div class="panel-head">
+          <h3 id="dayDetailTitle"></h3>
+          <button id="closeDayDetail" class="link-btn">close</button>
+        </div>
+        <div id="dayDetailEvents"></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Add / edit event modal -->
+<div id="eventModal" class="modal hidden">
+  <div class="modal-card">
+    <h3 id="eventModalTitle">Add event</h3>
+    <form id="eventForm">
+      <label class="full">Title
+        <input type="text" id="evTitle" required placeholder="e.g. Practice Exam #2">
+      </label>
+      <div class="field-row">
+        <label>Date
+          <input type="date" id="evDate" required>
+        </label>
+        <label>Time <span class="muted small">(optional)</span>
+          <input type="time" id="evTime">
+        </label>
+      </div>
+      <label class="full">Location <span class="muted small">(optional)</span>
+        <input type="text" id="evLocation" placeholder="e.g. Precinct 3 training room">
+      </label>
+      <label class="full">Notes <span class="muted small">(optional)</span>
+        <textarea id="evNotes" rows="2"></textarea>
+      </label>
+      <div class="notes-actions">
+        <button type="submit" class="btn btn-primary">Save event</button>
+        <button type="button" id="deleteEventBtn" class="btn btn-danger hidden">Delete</button>
+        <button type="button" id="closeEventModal" class="btn btn-ghost">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script type="module" src="js/firebase-config.js"></script>
+<script type="module" src="js/notes-assist.js"></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
