@@ -180,6 +180,11 @@ button { font-family: var(--font-body); cursor: pointer; border: none; }
 .btn-danger:hover { background: var(--danger); color: var(--white); }
 .btn-mark-correct { background: transparent; color: var(--success); border: 1px solid var(--success); margin-left: auto; }
 .btn-mark-correct:hover { background: var(--success); color: var(--white); }
+.btn-google {
+  background: var(--white); color: #1F1F1F; display: inline-flex; align-items: center; gap: 10px;
+  padding: 11px 22px; width: 100%; justify-content: center;
+}
+.btn-google:hover { background: #F1F1F1; }
 .link-btn { background: none; color: var(--blue-bright); text-decoration: underline; padding: 0; font-size: inherit; }
 .gold-toggle-btn { background: none; border: none; font-size: 1.1rem; color: var(--grey-dim); padding: 2px 4px; line-height: 1; }
 .gold-toggle-btn.is-gold { color: var(--gold); }
@@ -208,6 +213,20 @@ button { font-family: var(--font-body); cursor: pointer; border: none; }
 .candidate-item .cand-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .candidate-item .cand-gold-label { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--gold); font-weight: 500; }
 .candidate-item .cand-gold-label input { accent-color: var(--gold); }
+
+.format-example {
+  background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+  padding: 14px 16px; font-family: var(--font-mono); font-size: 0.85rem; color: var(--grey);
+  white-space: pre-wrap; overflow-x: auto; margin: 8px 0;
+}
+
+.audio-controls {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line);
+}
+.audio-controls label { flex-direction: row; align-items: center; gap: 8px; font-weight: 500; }
+.audio-controls select { width: auto; }
+.btn.small.playing { border-color: var(--blue-bright); color: var(--blue-bright); }
 
 /* ---------- Study ---------- */
 .study-setup .field-row { align-items: flex-end; }

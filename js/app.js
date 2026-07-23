@@ -5,7 +5,7 @@ import {
   onSnapshot, query, orderBy, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
-  getAuth, signInAnonymously, onAuthStateChanged
+  getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 // ---------------------------------------------------------------
@@ -14,13 +14,6 @@ import {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
-
-onAuthStateChanged(auth, (user) => {
-  if (!user) signInAnonymously(auth).catch((err) => {
-    console.error("Anonymous sign-in failed", err);
-    showToast("Couldn't connect to the shared database. Check js/firebase-config.js.");
-  });
-});
 
 // ---------------------------------------------------------------
 // Shared utilities
@@ -118,53 +111,51 @@ export function computeWeek(date) {
 }
 
 // ---------------------------------------------------------------
-// Name gate / current user
+// Google Sign-In / current user
 // ---------------------------------------------------------------
 const nameGate = document.getElementById("nameGate");
 const appRoot = document.getElementById("app");
-const nameInput = document.getElementById("nameInput");
 const currentUserLabel = document.getElementById("currentUserLabel");
+const signInError = document.getElementById("signInError");
+
+let currentFirebaseUser = null;
 
 function getCurrentUser() {
-  return localStorage.getItem("leoprep_username") || "";
+  if (!currentFirebaseUser) return "Unknown";
+  return currentFirebaseUser.displayName || currentFirebaseUser.email || "Unknown";
 }
 
-function setCurrentUser(name) {
-  localStorage.setItem("leoprep_username", name);
-  currentUserLabel.textContent = name;
-}
-
-function initNameGate() {
-  const existing = getCurrentUser();
-  if (existing) {
-    currentUserLabel.textContent = existing;
+onAuthStateChanged(auth, (user) => {
+  currentFirebaseUser = user;
+  if (user) {
+    currentUserLabel.textContent = getCurrentUser();
     nameGate.classList.add("hidden");
     appRoot.classList.remove("hidden");
   } else {
     nameGate.classList.remove("hidden");
     appRoot.classList.add("hidden");
   }
-}
-
-document.getElementById("nameSubmit").addEventListener("click", () => {
-  const val = nameInput.value.trim();
-  if (!val) { nameInput.focus(); return; }
-  setCurrentUser(val);
-  nameGate.classList.add("hidden");
-  appRoot.classList.remove("hidden");
-});
-nameInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") document.getElementById("nameSubmit").click();
 });
 
-document.getElementById("changeNameBtn").addEventListener("click", () => {
-  nameInput.value = getCurrentUser();
-  nameGate.classList.remove("hidden");
-  appRoot.classList.add("hidden");
-  nameInput.focus();
+document.getElementById("googleSignInBtn").addEventListener("click", async () => {
+  signInError.classList.add("hidden");
+  try {
+    await signInWithPopup(auth, new GoogleAuthProvider());
+  } catch (err) {
+    console.error("Google sign-in failed", err);
+    signInError.textContent = `Sign-in failed: ${err.message}`;
+    signInError.classList.remove("hidden");
+  }
 });
 
-initNameGate();
+document.getElementById("changeNameBtn").addEventListener("click", async () => {
+  try {
+    await signOut(auth);
+  } catch (err) {
+    console.error(err);
+    showToast("Sign out failed.");
+  }
+});
 
 // ---------------------------------------------------------------
 // Tabs
@@ -427,6 +418,34 @@ window.leoprepFillQuestionForm = (question, answer, opts = {}) => {
   if (question) qCategory.focus(); else qQuestion.focus();
 };
 
+// Bulk-add for the Upload tab's "Send all to Question Bank" button.
+// cards: [{ question, answer, kind: 'standard'|'truefalse', category, gold }]
+window.leoprepBulkAddQuestions = async (cards) => {
+  const user = getCurrentUser();
+  const week = computeWeek(new Date());
+  let success = 0, fail = 0;
+  for (const c of cards) {
+    try {
+      await addDoc(collection(db, "questions"), {
+        question: c.question,
+        answer: c.answer,
+        type: c.kind === "truefalse" ? "truefalse" : "standard",
+        category: c.category || "",
+        gold: !!c.gold,
+        distractors: [],
+        week,
+        createdBy: user, createdAt: serverTimestamp(),
+        updatedBy: user, updatedAt: serverTimestamp()
+      });
+      success++;
+    } catch (err) {
+      console.error(err);
+      fail++;
+    }
+  }
+  return { success, fail };
+};
+
 // ---------------------------------------------------------------
 // Study sessions
 // ---------------------------------------------------------------
@@ -450,6 +469,10 @@ const prevBtn = document.getElementById("prevBtn");
 const nextBtn = document.getElementById("nextBtn");
 const endStudyBtn = document.getElementById("endStudyBtn");
 const markCorrectBtn = document.getElementById("markCorrectBtn");
+const audioControls = document.getElementById("audioControls");
+const audioPlayBtn = document.getElementById("audioPlayBtn");
+const audioStopBtn = document.getElementById("audioStopBtn");
+const audioPause = document.getElementById("audioPause");
 
 let sessionQuestions = [];
 let sessionIndex = 0;
@@ -481,6 +504,8 @@ startStudyBtn.addEventListener("click", () => {
   sessionAnswered = new Array(sessionQuestions.length).fill(false);
   studyArea.classList.remove("hidden");
   markCorrectBtn.classList.toggle("hidden", sessionFormat !== "flashcard");
+  audioControls.classList.toggle("hidden", sessionFormat !== "flashcard");
+  stopAudioSession();
   renderStudyQuestion();
 });
 
@@ -552,6 +577,7 @@ function handleChoiceAnswer(btn, opt, allOpts, optionsContainer, viewEl, explici
 flashcard.addEventListener("click", () => flashcard.classList.toggle("flipped"));
 
 markCorrectBtn.addEventListener("click", () => {
+  stopAudioSession();
   if (!sessionAnswered[sessionIndex]) {
     sessionAnswered[sessionIndex] = true;
     sessionScore++;
@@ -569,9 +595,11 @@ function advanceCard() {
 }
 
 prevBtn.addEventListener("click", () => {
+  stopAudioSession();
   if (sessionIndex > 0) { sessionIndex--; renderStudyQuestion(); }
 });
 nextBtn.addEventListener("click", () => {
+  stopAudioSession();
   if (sessionFormat === "flashcard" && !sessionAnswered[sessionIndex]) {
     sessionAnswered[sessionIndex] = true;
     sessionWrong++;
@@ -580,8 +608,80 @@ nextBtn.addEventListener("click", () => {
   advanceCard();
 });
 endStudyBtn.addEventListener("click", () => {
+  stopAudioSession();
   studyArea.classList.add("hidden");
 });
+
+// ---------------------------------------------------------------
+// Audio flashcard session (Web Speech API — built into the browser,
+// no API key or network call needed)
+// ---------------------------------------------------------------
+let audioSessionActive = false;
+let audioWaitTimer = null;
+
+function speak(text) {
+  return new Promise((resolve) => {
+    if (!("speechSynthesis" in window)) { resolve(); return; }
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = 0.95;
+    utter.onend = resolve;
+    utter.onerror = resolve;
+    window.speechSynthesis.speak(utter);
+  });
+}
+
+function audioWait(ms) {
+  return new Promise((resolve) => { audioWaitTimer = setTimeout(resolve, ms); });
+}
+
+function setAudioButtons(playing) {
+  audioPlayBtn.classList.toggle("hidden", playing);
+  audioStopBtn.classList.toggle("hidden", !playing);
+}
+
+async function runAudioSession() {
+  if (!("speechSynthesis" in window)) {
+    showToast("This browser doesn't support text-to-speech.");
+    return;
+  }
+  audioSessionActive = true;
+  setAudioButtons(true);
+  const pauseMs = Number(audioPause.value) || 5000;
+
+  while (audioSessionActive && sessionIndex < sessionQuestions.length) {
+    renderStudyQuestion();
+    const q = sessionQuestions[sessionIndex];
+    await speak(`Question. ${q.question}`);
+    if (!audioSessionActive) break;
+    await audioWait(pauseMs);
+    if (!audioSessionActive) break;
+    flashcard.classList.add("flipped");
+    await speak(`Answer. ${q.answer}`);
+    if (!audioSessionActive) break;
+    await audioWait(1200);
+    if (!audioSessionActive) break;
+    if (sessionIndex < sessionQuestions.length - 1) {
+      sessionIndex++;
+    } else {
+      showToast("Audio session complete.");
+      break;
+    }
+  }
+  audioSessionActive = false;
+  setAudioButtons(false);
+}
+
+function stopAudioSession() {
+  if (!audioSessionActive && !("speechSynthesis" in window)) return;
+  audioSessionActive = false;
+  clearTimeout(audioWaitTimer);
+  if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  setAudioButtons(false);
+}
+
+audioPlayBtn.addEventListener("click", () => { runAudioSession(); });
+audioStopBtn.addEventListener("click", () => { stopAudioSession(); });
 
 // ---------------------------------------------------------------
 // Calendar (Firestore: "events")
