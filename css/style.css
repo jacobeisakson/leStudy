@@ -180,11 +180,6 @@ button { font-family: var(--font-body); cursor: pointer; border: none; }
 .btn-danger:hover { background: var(--danger); color: var(--white); }
 .btn-mark-correct { background: transparent; color: var(--success); border: 1px solid var(--success); margin-left: auto; }
 .btn-mark-correct:hover { background: var(--success); color: var(--white); }
-.btn-google {
-  background: var(--white); color: #1F1F1F; display: inline-flex; align-items: center; gap: 10px;
-  padding: 11px 22px; width: 100%; justify-content: center;
-}
-.btn-google:hover { background: #F1F1F1; }
 .link-btn { background: none; color: var(--blue-bright); text-decoration: underline; padding: 0; font-size: inherit; }
 .gold-toggle-btn { background: none; border: none; font-size: 1.1rem; color: var(--grey-dim); padding: 2px 4px; line-height: 1; }
 .gold-toggle-btn.is-gold { color: var(--gold); }

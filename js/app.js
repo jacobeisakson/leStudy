@@ -5,7 +5,7 @@ import {
   onSnapshot, query, orderBy, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
-  getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+  getAuth, signInAnonymously, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 // ---------------------------------------------------------------
@@ -14,6 +14,13 @@ import {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+
+onAuthStateChanged(auth, (user) => {
+  if (!user) signInAnonymously(auth).catch((err) => {
+    console.error("Anonymous sign-in failed", err);
+    showToast("Couldn't connect to the shared database. Check js/firebase-config.js.");
+  });
+});
 
 // ---------------------------------------------------------------
 // Shared utilities
@@ -111,51 +118,53 @@ export function computeWeek(date) {
 }
 
 // ---------------------------------------------------------------
-// Google Sign-In / current user
+// Name gate / current user
 // ---------------------------------------------------------------
 const nameGate = document.getElementById("nameGate");
 const appRoot = document.getElementById("app");
+const nameInput = document.getElementById("nameInput");
 const currentUserLabel = document.getElementById("currentUserLabel");
-const signInError = document.getElementById("signInError");
-
-let currentFirebaseUser = null;
 
 function getCurrentUser() {
-  if (!currentFirebaseUser) return "Unknown";
-  return currentFirebaseUser.displayName || currentFirebaseUser.email || "Unknown";
+  return localStorage.getItem("leoprep_username") || "";
 }
 
-onAuthStateChanged(auth, (user) => {
-  currentFirebaseUser = user;
-  if (user) {
-    currentUserLabel.textContent = getCurrentUser();
+function setCurrentUser(name) {
+  localStorage.setItem("leoprep_username", name);
+  currentUserLabel.textContent = name;
+}
+
+function initNameGate() {
+  const existing = getCurrentUser();
+  if (existing) {
+    currentUserLabel.textContent = existing;
     nameGate.classList.add("hidden");
     appRoot.classList.remove("hidden");
   } else {
     nameGate.classList.remove("hidden");
     appRoot.classList.add("hidden");
   }
+}
+
+document.getElementById("nameSubmit").addEventListener("click", () => {
+  const val = nameInput.value.trim();
+  if (!val) { nameInput.focus(); return; }
+  setCurrentUser(val);
+  nameGate.classList.add("hidden");
+  appRoot.classList.remove("hidden");
+});
+nameInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") document.getElementById("nameSubmit").click();
 });
 
-document.getElementById("googleSignInBtn").addEventListener("click", async () => {
-  signInError.classList.add("hidden");
-  try {
-    await signInWithPopup(auth, new GoogleAuthProvider());
-  } catch (err) {
-    console.error("Google sign-in failed", err);
-    signInError.textContent = `Sign-in failed: ${err.message}`;
-    signInError.classList.remove("hidden");
-  }
+document.getElementById("changeNameBtn").addEventListener("click", () => {
+  nameInput.value = getCurrentUser();
+  nameGate.classList.remove("hidden");
+  appRoot.classList.add("hidden");
+  nameInput.focus();
 });
 
-document.getElementById("changeNameBtn").addEventListener("click", async () => {
-  try {
-    await signOut(auth);
-  } catch (err) {
-    console.error(err);
-    showToast("Sign out failed.");
-  }
-});
+initNameGate();
 
 // ---------------------------------------------------------------
 // Tabs
@@ -412,6 +421,13 @@ window.leoprepFillQuestionForm = (question, answer, opts = {}) => {
     qTFAnswer.value = (answer === "False" ? "False" : "True");
   } else {
     qAnswer.value = answer;
+    if (opts.category) qCategory.value = opts.category;
+    if (opts.distractors && opts.distractors.length) {
+      document.getElementById("d0").value = opts.distractors[0] || "";
+      document.getElementById("d1").value = opts.distractors[1] || "";
+      document.getElementById("d2").value = opts.distractors[2] || "";
+      distractorFields.classList.remove("hidden");
+    }
   }
   switchTab("bank");
   questionForm.scrollIntoView({ behavior: "smooth" });
@@ -432,7 +448,7 @@ window.leoprepBulkAddQuestions = async (cards) => {
         type: c.kind === "truefalse" ? "truefalse" : "standard",
         category: c.category || "",
         gold: !!c.gold,
-        distractors: [],
+        distractors: c.kind === "truefalse" ? [] : (c.distractors || []),
         week,
         createdBy: user, createdAt: serverTimestamp(),
         updatedBy: user, updatedAt: serverTimestamp()

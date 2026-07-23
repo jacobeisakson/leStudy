@@ -36,7 +36,7 @@ function parseImportText(raw) {
   const cards = [];
 
   for (const block of blocks) {
-    let question = null, answer = null, type = null, category = "", gold = false;
+    let question = null, answer = null, type = null, category = "", gold = false, distractors = [];
 
     for (const rawLine of block.split(/\r?\n/)) {
       const line = rawLine.trim();
@@ -49,6 +49,9 @@ function parseImportText(raw) {
       else if (key === "type") type = val.toLowerCase().replace(/[\s/_-]/g, "");
       else if (key === "category") category = val;
       else if (key === "gold") gold = /^(yes|true|1|y)$/i.test(val);
+      else if (key === "distractors" || key === "options" || key === "choices") {
+        distractors = val.split("|").map((d) => d.trim()).filter(Boolean).slice(0, 3);
+      }
     }
 
     if (!question || !answer) continue;
@@ -61,9 +64,10 @@ function parseImportText(raw) {
     }
     if (kind === "truefalse") {
       answer = /^true$/i.test(answer) ? "True" : "False";
+      distractors = [];
     }
 
-    cards.push({ question, answer, kind, category, gold });
+    cards.push({ question, answer, kind, category, gold, distractors });
   }
 
   return cards;
@@ -79,9 +83,10 @@ function renderCandidates(cards) {
   }
   candidateList.innerHTML = cards.map((c, i) => `
     <div class="candidate-item" data-idx="${i}">
-      <span class="cand-type">${c.kind === "truefalse" ? "True / False" : "Flashcard"}${c.category ? ` &middot; ${escapeHtml(c.category)}` : ""}</span>
+      <span class="cand-type">${c.kind === "truefalse" ? "True / False" : "Flashcard / MC"}${c.category ? ` &middot; ${escapeHtml(c.category)}` : ""}</span>
       <p class="cand-q">${escapeHtml(c.question)}</p>
       <p class="cand-a">&#10003; ${escapeHtml(c.answer)}</p>
+      ${c.distractors && c.distractors.length ? `<p class="cand-a muted">Wrong answers: ${c.distractors.map(escapeHtml).join(" &nbsp;|&nbsp; ")}</p>` : ""}
       <div class="cand-actions">
         <label class="cand-gold-label"><input type="checkbox" data-gold-idx="${i}" ${c.gold ? "checked" : ""}> &#11088; Gold</label>
         <button class="btn btn-secondary small" data-send-idx="${i}">Send to Question Bank</button>
@@ -95,7 +100,9 @@ function renderCandidates(cards) {
       const goldBox = candidateList.querySelector(`input[data-gold-idx="${idx}"]`);
       window.leoprepFillQuestionForm(c.question, c.answer, {
         type: c.kind === "truefalse" ? "truefalse" : "standard",
-        gold: goldBox ? goldBox.checked : false
+        gold: goldBox ? goldBox.checked : false,
+        category: c.category,
+        distractors: c.distractors
       });
     });
   });
